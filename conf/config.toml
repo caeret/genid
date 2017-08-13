@@ -1,0 +1,10 @@
+listen = "127.0.0.1:6390"
+engine = "mysql"
+step = 10
+keys = ["foo", "bar"]
+rw_timeout = "10s"
+idle_timeout = "5m"
+
+[mysql]
+dsn = "user:passwd@tcp(ip:port)/dbname"
+tablename = "baz"
