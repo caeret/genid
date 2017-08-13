@@ -180,7 +180,7 @@ func (m *mysqlRowBasedEngine) current() (int64, error) {
 func (m *mysqlRowBasedEngine) increase(delta int64) (cur, max int64, err error) {
 	defer func() {
 		if err == nil {
-			m.logger.Info("counter for key \"%s\" is increases from %d to %d.", m.key, cur, max)
+			m.logger.Info("counter for key \"%s\" is increased from %d to %d.", m.key, cur, max)
 		}
 	}()
 	tx, err := m.generator.db.Begin()

@@ -5,6 +5,9 @@ import (
 	"os"
 	"time"
 
+	"os/signal"
+	"syscall"
+
 	"github.com/BurntSushi/toml"
 	"github.com/gaemma/beam"
 	"github.com/gaemma/genid/beamhandler"
@@ -70,6 +73,21 @@ func main() {
 	}
 }
 
+func handleSignals(s *beam.Server) {
+	ch := make(chan os.Signal)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		sig := <-ch
+		switch sig {
+		case syscall.SIGINT, syscall.SIGTERM:
+			err := s.Stop()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "fail to stop server: %s.", err.Error())
+			}
+		}
+	}()
+}
+
 func parseConfig(c *cli.Context) (config Config, err error) {
 	path := c.GlobalString("c")
 	if len(path) == 0 {
@@ -110,9 +128,16 @@ func commandRun(c *cli.Context) error {
 		Handler: beamhandler.NewHandler(gen),
 	}
 	server := beam.NewServer(serverConfig)
+
+	handleSignals(server)
+
 	err = server.Serve(config.Listen)
 	if err != nil {
-		return cli.NewExitError(err.Error(), 10)
+		if err == beam.ErrServerClosed {
+			logger.Info(err.Error())
+		} else {
+			return cli.NewExitError(err.Error(), 10)
+		}
 	}
 
 	return nil
