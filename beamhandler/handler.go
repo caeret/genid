@@ -18,35 +18,35 @@ func NewHandler(engine generator.Generator) *DefaultHandler {
 	return s
 }
 
-func (s *DefaultHandler) Handle(req beam.Request) (beam.Response, error) {
-	var resp beam.Response
-	switch strings.ToUpper(string(req[0])) {
+func (s *DefaultHandler) Handle(req *beam.Request) (beam.Reply, error) {
+	var resp beam.Reply
+	switch strings.ToUpper(req.GetStr(0)) {
 	case "PING":
-		resp = beam.NewSimpleStringsResponse("PONG")
+		resp = beam.NewSimpleStringsReply("PONG")
 	case "INCR":
-		if len(req) != 2 {
-			resp = beam.NewErrorsResponse("invalid arguments")
+		if req.Len() != 2 {
+			resp = beam.NewErrorsReply("invalid arguments")
 		} else {
-			id, err := s.engine.Next(string(req[1]))
+			id, err := s.engine.Next(req.GetStr(1))
 			if err != nil {
-				resp = beam.NewErrorsResponse(err.Error())
+				resp = beam.NewErrorsReply(err.Error())
 			} else {
-				resp = beam.NewIntegersResponse(int(id))
+				resp = beam.NewIntegersReply(int(id))
 			}
 		}
 	case "GET":
-		if len(req) != 2 {
-			resp = beam.NewErrorsResponse("invalid arguments")
+		if req.Len() != 2 {
+			resp = beam.NewErrorsReply("invalid arguments")
 		} else {
-			id, err := s.engine.Current(string(req[1]))
+			id, err := s.engine.Current(req.GetStr(1))
 			if err != nil {
-				resp = beam.NewErrorsResponse(err.Error())
+				resp = beam.NewErrorsReply(err.Error())
 			} else {
-				resp = beam.NewSimpleStringsResponse(strconv.FormatInt(id, 10))
+				resp = beam.NewSimpleStringsReply(strconv.FormatInt(id, 10))
 			}
 		}
 	default:
-		resp = beam.NewErrorsResponse("unsupported method.")
+		resp = beam.NewErrorsReply("unsupported method.")
 	}
 	return resp, nil
 }

@@ -3,10 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
-	"time"
-
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/gaemma/beam"
@@ -80,7 +79,7 @@ func handleSignals(s *beam.Server) {
 		sig := <-ch
 		switch sig {
 		case syscall.SIGINT, syscall.SIGTERM:
-			err := s.Stop()
+			err := s.Close()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "fail to stop server: %s.", err.Error())
 			}
