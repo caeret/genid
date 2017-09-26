@@ -123,10 +123,9 @@ func commandRun(c *cli.Context) error {
 	gen.EnableKeys(config.Keys)
 
 	serverConfig := beam.Config{
-		Logger:  logging.NewSimpleLogger(),
-		Handler: beamhandler.NewHandler(gen),
+		Logger: logging.NewSimpleLogger(),
 	}
-	server := beam.NewServer(serverConfig)
+	server := beam.NewServer(beamhandler.NewHandler(gen), serverConfig)
 
 	handleSignals(server)
 
