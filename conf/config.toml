@@ -1,3 +1,4 @@
+pidfile = "path/to/pid"
 listen = "127.0.0.1:6390"
 engine = "mysql"
 step = 10

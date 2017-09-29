@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -26,6 +27,7 @@ func (d *duration) UnmarshalText(text []byte) error {
 }
 
 type Config struct {
+	PIDFile     string `toml:"pidfile"`
 	Listen      string
 	Engine      string
 	Step        int64
@@ -38,6 +40,8 @@ type Config struct {
 		TableName string
 	}
 }
+
+var logger = logging.NewSimpleLogger()
 
 func main() {
 	app := cli.NewApp()
@@ -72,16 +76,24 @@ func main() {
 	}
 }
 
-func handleSignals(s *beam.Server) {
+func handleSignals(s *beam.Server, config Config) {
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		sig := <-ch
 		switch sig {
 		case syscall.SIGINT, syscall.SIGTERM:
+			logger.Info("receive signal: %s.", sig)
 			err := s.Close()
+			if len(config.PIDFile) > 0 {
+				logger.Info("remove PIDFILE: %s.", config.PIDFile)
+				err := os.Remove(config.PIDFile)
+				if err != nil {
+					logger.Warning("fail to remove PIDFILE: %s.", err.Error())
+				}
+			}
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "fail to stop server: %s.", err.Error())
+				logger.Warning("fail to stop server: %s.", err.Error())
 			}
 		}
 	}()
@@ -102,8 +114,6 @@ func commandRun(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
-	logger := logging.NewSimpleLogger()
 
 	logger.Info("load configuration %v", config)
 
@@ -128,7 +138,15 @@ func commandRun(c *cli.Context) error {
 	}
 	server := beam.NewServer(beamhandler.NewHandler(gen), serverConfig)
 
-	handleSignals(server)
+	handleSignals(server, config)
+
+	if len(config.PIDFile) > 0 {
+		pid, err := setUpPIDFile(config.PIDFile)
+		if err != nil {
+			return cli.NewExitError(err.Error(), 10)
+		}
+		logger.Info("create pidfile \"%s\" with PID \"%d\".", config.PIDFile, pid)
+	}
 
 	err = server.Serve()
 	if err != nil {
@@ -148,8 +166,6 @@ func commandInit(c *cli.Context) error {
 		return err
 	}
 
-	logger := logging.NewSimpleLogger()
-
 	logger.Info("load configuration %v", config)
 
 	if config.Engine != "mysql" {
@@ -166,4 +182,17 @@ func commandInit(c *cli.Context) error {
 		return cli.NewExitError(err.Error(), 10)
 	}
 	return nil
+}
+
+func setUpPIDFile(PIDFile string) (PID int, err error) {
+	file, err := os.Create(PIDFile)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	PID = os.Getpid()
+	var PIDData []byte
+	PIDData = strconv.AppendInt(PIDData, int64(PID), 10)
+	_, err = file.Write(PIDData)
+	return
 }
