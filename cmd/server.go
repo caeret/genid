@@ -124,12 +124,13 @@ func commandRun(c *cli.Context) error {
 
 	serverConfig := beam.Config{
 		Logger: logging.NewSimpleLogger(),
+		Addr:   config.Listen,
 	}
 	server := beam.NewServer(beamhandler.NewHandler(gen), serverConfig)
 
 	handleSignals(server)
 
-	err = server.Serve(config.Listen)
+	err = server.Serve()
 	if err != nil {
 		if err == beam.ErrServerClosed {
 			logger.Info(err.Error())
