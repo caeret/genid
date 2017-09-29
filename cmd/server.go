@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"strconv"
@@ -117,6 +118,14 @@ func commandRun(c *cli.Context) error {
 
 	logger.Info("load configuration %v", config)
 
+	if len(config.PIDFile) > 0 {
+		pid, err := setUpPIDFile(config.PIDFile)
+		if err != nil {
+			return cli.NewExitError(err.Error(), 10)
+		}
+		logger.Info("create pidfile \"%s\" with PID \"%d\".", config.PIDFile, pid)
+	}
+
 	if config.Engine != "mysql" {
 		return cli.NewExitError("only mysql engine supported.", 10)
 	}
@@ -139,14 +148,6 @@ func commandRun(c *cli.Context) error {
 	server := beam.NewServer(beamhandler.NewHandler(gen), serverConfig)
 
 	handleSignals(server, config)
-
-	if len(config.PIDFile) > 0 {
-		pid, err := setUpPIDFile(config.PIDFile)
-		if err != nil {
-			return cli.NewExitError(err.Error(), 10)
-		}
-		logger.Info("create pidfile \"%s\" with PID \"%d\".", config.PIDFile, pid)
-	}
 
 	err = server.Serve()
 	if err != nil {
@@ -185,7 +186,33 @@ func commandInit(c *cli.Context) error {
 }
 
 func setUpPIDFile(PIDFile string) (PID int, err error) {
-	file, err := os.Create(PIDFile)
+	var file *os.File
+	_, err = os.Stat(PIDFile)
+	if err == nil {
+		// file exist
+		var oldPIDData []byte
+		oldPIDData, err = ioutil.ReadFile(PIDFile)
+		if err != nil {
+			return
+		}
+		var oldPID int64
+		oldPID, err = strconv.ParseInt(string(oldPIDData), 10, 64)
+		if err != nil {
+			return
+		}
+
+		var p *os.Process
+		p, err = os.FindProcess(int(oldPID))
+		if err != nil {
+			return
+		}
+		err = p.Signal(syscall.Signal(0))
+		if err == nil {
+			err = fmt.Errorf("progress with PID %d is running", oldPID)
+			return
+		}
+	}
+	file, err = os.Create(PIDFile)
 	if err != nil {
 		return
 	}
